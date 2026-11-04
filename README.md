@@ -9,6 +9,8 @@ A native macOS menu bar app for Clash-API cores (Clash, Mihomo, sing-box). At a 
 ## Install
 
 ```sh
+brew tap fangxuanxin/tap
+brew trust fangxuanxin/tap
 brew install --cask fangxuanxin/tap/clashbar
 ```
 

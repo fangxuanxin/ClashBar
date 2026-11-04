@@ -9,6 +9,8 @@
 ## 安装
 
 ```sh
+brew tap fangxuanxin/tap
+brew trust fangxuanxin/tap
 brew install --cask fangxuanxin/tap/clashbar
 ```
 
