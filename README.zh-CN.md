@@ -4,7 +4,15 @@
 
 原生 macOS 菜单栏应用，适用于提供 Clash API 的内核（Clash、Mihomo、sing-box）。在菜单栏就能看到默认出口落在哪个国家或地区，不用打开面板就能切换模式和节点。
 
-> 早期开发中，尚未发布版本。
+> 早期开发中（v0.1.0），暂未使用 Developer ID 签名。
+
+## 安装
+
+```sh
+brew install --cask fangxuanxin/tap/clashbar
+```
+
+也可以从 [Releases](https://github.com/fangxuanxin/ClashBar/releases) 下载 `ClashBar.zip`。应用还没经过公证，首次打开会被 macOS 拦下：到「系统设置 → 隐私与安全性」点**仍要打开**，或运行 `xattr -dr com.apple.quarantine /Applications/ClashBar.app`。
 
 ## 菜单栏图标
 

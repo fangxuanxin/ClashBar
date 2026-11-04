@@ -4,7 +4,15 @@ English | [简体中文](README.zh-CN.md)
 
 A native macOS menu bar app for Clash-API cores (Clash, Mihomo, sing-box). At a glance it tells you which country or region your default exit is in, and lets you switch modes and nodes without opening a dashboard.
 
-> Early development. No version number or release has been published yet.
+> Early development (v0.1.0). Builds are not yet signed with a Developer ID.
+
+## Install
+
+```sh
+brew install --cask fangxuanxin/tap/clashbar
+```
+
+Or download `ClashBar.zip` from [Releases](https://github.com/fangxuanxin/ClashBar/releases). Because the app is not notarized yet, macOS blocks the first launch: open System Settings → Privacy & Security and click **Open Anyway**, or run `xattr -dr com.apple.quarantine /Applications/ClashBar.app`.
 
 ## Menu bar icon
 
