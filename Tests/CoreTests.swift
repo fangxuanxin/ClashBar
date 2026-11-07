@@ -261,7 +261,8 @@ func testRegion() {
 
 @main
 enum TestMain {
-    static func main() {
+    static func main() async {
+        await testSavedControllerSelection()
         testResolveViaMatch()
         testResolveOtherBranch()
         testResolveDirectNodeSelected()
@@ -280,4 +281,39 @@ enum TestMain {
         print(failures == 0 ? "✓ \(passes) checks passed" : "✗ \(failures) failed, \(passes) passed")
         exit(failures == 0 ? 0 : 1)
     }
+}
+
+func testSavedControllerSelection() async {
+    let first = ControllerConfig(name: "路由器一", url: "http://192.168.1.1:9090", secret: "first")
+    let second = ControllerConfig(name: "路由器二", url: first.url, secret: "second")
+    let third = ControllerConfig(name: "路由器三", url: first.url, secret: "third")
+    var visited: [UUID] = []
+    do {
+        let selected = try await Discovery.firstReachable([first, second, third]) { controller in
+            visited.append(controller.id)
+            return controller.secret == "second" ? .ready(version: "test") : .needsSecret
+        }
+        expectEqual(selected, second, "同 IP 使用各自口令，保留配置身份")
+        expectEqual(visited, [first.id, second.id], "依次轮询，成功即停止")
+    } catch { expect(false, "应选中可用配置：\(error)") }
+    do {
+        _ = try await Discovery.firstReachable([first, second]) { _ in .unreachable }
+        expect(false, "全部离线应报错")
+    } catch let error as ClashError {
+        if case .unreachable = error { expect(true, "全部离线") }
+        else { expect(false, "离线不应报告缺少配置") }
+    } catch { expect(false, "错误类型") }
+    do {
+        _ = try await Discovery.firstReachable([first, second]) { controller in
+            controller.id == first.id ? .needsSecret : .unreachable
+        }
+        expect(false, "口令错误应报错")
+    } catch { expectEqual(error as? ClashError, .unauthorized, "保留口令错误") }
+    do {
+        _ = try await Discovery.firstReachable([]) { _ in
+            expect(false, "空列表无需探测")
+            return .unreachable
+        }
+        expect(false, "空列表应报错")
+    } catch { expectEqual(error as? ClashError, .notConfigured, "空列表") }
 }

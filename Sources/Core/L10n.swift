@@ -120,7 +120,8 @@ enum L10n {
             "settings.legend": "The cat is followed by the exit region (US, JP, HK…); → means direct. A faded icon means the current node is not responding.",
 
             "controllers.active": "Use",
-            "controllers.auto": "Automatic (detect on this Mac)",
+            "controllers.auto": "Automatic (try saved controllers)",
+            "controllers.none_reachable": "None of the saved controllers are reachable.",
             "controllers.saved": "Saved Controllers",
             "controllers.none": "No saved controllers yet.",
             "controllers.add": "Add Controller",
@@ -234,7 +235,8 @@ enum L10n {
             "settings.legend": "猫的右边是出口所在地区（US、JP、HK……），→ 表示直连。图标变淡表示当前节点无响应。",
 
             "controllers.active": "使用",
-            "controllers.auto": "自动（在本机检测）",
+            "controllers.auto": "自动（轮询已保存的控制器）",
+            "controllers.none_reachable": "已保存的控制器均无法连接。",
             "controllers.saved": "已保存的控制器",
             "controllers.none": "还没有保存的控制器。",
             "controllers.add": "添加控制器",

@@ -221,7 +221,7 @@ struct ControllersPane: View {
             ControllerEditor(original: controller) { saved in
                 let isNew = !prefs.controllers.contains { $0.id == saved.id }
                 prefs.upsert(saved)
-                if isNew || prefs.activeControllerID == saved.id {
+                if (isNew && prefs.activeControllerID != nil) || prefs.activeControllerID == saved.id {
                     if prefs.activeControllerID == saved.id { model.controllerChanged() }
                     prefs.activeControllerID = saved.id
                 }

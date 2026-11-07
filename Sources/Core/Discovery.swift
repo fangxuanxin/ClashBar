@@ -155,6 +155,24 @@ enum Discovery {
         }
     }
 
+    static func firstReachable(_ controllers: [ControllerConfig],
+                               probe: (ControllerConfig) async -> DiscoveredController.Status = Discovery.probe) async throws -> ControllerConfig {
+        var needsSecret = false
+        for controller in controllers {
+            try Task.checkCancellation()
+            let status = await probe(controller)
+            try Task.checkCancellation()
+            switch status {
+            case .ready: return controller
+            case .needsSecret: needsSecret = true
+            case .unreachable: break
+            }
+        }
+        if needsSecret { throw ClashError.unauthorized }
+        if controllers.isEmpty { throw ClashError.notConfigured }
+        throw ClashError.unreachable(L10n.t("controllers.none_reachable"))
+    }
+
     /// 内核标签：Mihomo 会在 /version 里带 meta: true
     static func coreLabel(_ version: VersionResponse) -> String {
         // 判定顺序参考 Clash-Dash：sing-box → Meta(Mihomo) → 原版 Clash

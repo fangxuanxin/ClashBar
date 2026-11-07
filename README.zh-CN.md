@@ -52,7 +52,9 @@ ClashBar 不会自己切换节点。默认每 30 秒刷新一次，每次只用�
 
 ## 控制器
 
-首次启动时自动寻找控制器：
+选择「自动」后，按保存顺序逐个尝试控制器（包含各自的口令），锁定第一个连通的配置；断线或网络变化后重新轮询。同一 IP 可以保存多份不同口令、不同名称的配置，不按路由器型号区分。全部失败时保留配置并定期重试；手动选择控制器时只连接指定配置。
+
+没有保存的配置时自动寻找控制器：
 
 - 本机配置文件里的 `external-controller`、`external-controller-unix` 和 `secret`（Clash Verge、ClashX Meta、Mihomo Party、`~/.config/clash`、`~/.config/mihomo` 等）
 - `127.0.0.1:9090` / `9097`
@@ -68,7 +70,7 @@ ClashBar 不会自己切换节点。默认每 30 秒刷新一次，每次只用�
 
 ```sh
 Scripts/build.sh              # 跑核心测试，生成 build/ClashBar.app
-Scripts/install.sh            # 构建、复制到 ~/Applications 并启动
+Scripts/install.sh            # 更新猫咪图标、构建、安装到 /Applications 并清理旧副本
 Scripts/package.sh            # 通用二进制（arm64 + x86_64），生成 build/ClashBar.zip 和 sha256
 Scripts/make-icon.sh          # 重新生成 Resources/AppIcon.icns
 ```

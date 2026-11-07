@@ -78,8 +78,7 @@ final class AppModel: ObservableObject {
                 guard self.pathSeen else { self.pathSeen = true; return }
                 self.networkDebounce?.cancel()
                 let work = DispatchWorkItem { [weak self] in
-                    self?.autoController = nil
-                    self?.refresh()
+                    self?.controllerChanged()
                 }
                 self.networkDebounce = work
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: work)
@@ -92,6 +91,9 @@ final class AppModel: ObservableObject {
             DispatchQueue.main.async { self?.scheduleTimer() }
         }.store(in: &cancellables)
         prefs.$activeControllerID.dropFirst().removeDuplicates().sink { [weak self] _ in
+            DispatchQueue.main.async { self?.controllerChanged() }
+        }.store(in: &cancellables)
+        prefs.$controllers.dropFirst().removeDuplicates().sink { [weak self] _ in
             DispatchQueue.main.async { self?.controllerChanged() }
         }.store(in: &cancellables)
     }
@@ -115,6 +117,7 @@ final class AppModel: ObservableObject {
 
     /// 控制器切换或编辑后：清空旧数据立即重读
     func controllerChanged() {
+        refreshTask?.cancel()
         autoController = nil
         rulesCache = nil
         snapshot = nil
@@ -146,7 +149,13 @@ final class AppModel: ObservableObject {
     private func resolveController() async throws -> ControllerConfig {
         if let active = prefs.activeController { return active }
         if let autoController { return autoController }
+        if !prefs.controllers.isEmpty {
+            let controller = try await Discovery.firstReachable(prefs.controllers)
+            autoController = controller
+            return controller
+        }
         let found = await Discovery.discover()
+        try Task.checkCancellation()
         guard let ready = found.first(where: { if case .ready = $0.status { return true } else { return false } }) else {
             if found.contains(where: { $0.status == .needsSecret }) { throw ClashError.unauthorized }
             throw ClashError.notConfigured
@@ -155,7 +164,8 @@ final class AppModel: ObservableObject {
         return ready.config
     }
 
-    private func performRefresh() async {
+    private func performRefresh(retryAutomatic: Bool = true) async {
+        let wasLocked = prefs.activeControllerID == nil && autoController != nil
         do {
             let controller = try await resolveController()
             let client = ClashClient(config: controller)
@@ -190,8 +200,20 @@ final class AppModel: ObservableObject {
         } catch is CancellationError {
             return
         } catch let error as ClashError {
+            if wasLocked && retryAutomatic {
+                autoController = nil
+                rulesCache = nil
+                await performRefresh(retryAutomatic: false)
+                return
+            }
             fail(error)
         } catch {
+            if wasLocked && retryAutomatic {
+                autoController = nil
+                rulesCache = nil
+                await performRefresh(retryAutomatic: false)
+                return
+            }
             fail(.unreachable(error.localizedDescription))
         }
     }

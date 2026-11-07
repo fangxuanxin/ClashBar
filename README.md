@@ -44,7 +44,9 @@ ClashBar never switches nodes on its own. It refreshes every 30 seconds by defau
 
 ## Controllers
 
-On first launch ClashBar looks for a controller automatically:
+Automatic mode tries saved controllers in order, including their individual secrets, and keeps the first reachable configuration until it fails or the network changes. Configurations sharing an IP remain separate. If all fail, ClashBar keeps them and retries periodically. Manual selection stays on the chosen controller.
+
+When no controllers are saved, ClashBar looks for a controller automatically:
 
 - `external-controller`, `external-controller-unix`, and `secret` in local configs (Clash Verge, ClashX Meta, Mihomo Party, `~/.config/clash`, `~/.config/mihomo`, …)
 - `127.0.0.1:9090` / `9097`
@@ -58,7 +60,7 @@ Requirements: macOS 13+ and the Xcode Command Line Tools. Xcode and other depend
 
 ```sh
 Scripts/build.sh              # runs core tests, builds build/ClashBar.app
-Scripts/install.sh            # build, copy to ~/Applications, launch
+Scripts/install.sh            # regenerate cat icon, build, install to /Applications, remove old copies
 Scripts/package.sh            # universal (arm64 + x86_64) build/ClashBar.zip + sha256
 Scripts/make-icon.sh          # regenerate Resources/AppIcon.icns
 ```
