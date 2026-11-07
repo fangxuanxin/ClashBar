@@ -10,13 +10,17 @@ enum StatusIcon {
         var dimmed: Bool = false
     }
 
-    static func kind(phase: AppModel.Phase, snapshot: ClashSnapshot?, health: NodeHealth) -> Kind {
+    static func kind(phase: AppModel.Phase, snapshot: ClashSnapshot?, health: NodeHealth, mbEnabled: Bool = false) -> Kind {
         if case .failed = phase { return Kind(badge: "!") }
         guard let snapshot else { return Kind(badge: nil, dimmed: true) }
         switch snapshot.exit.family {
         case .direct: return Kind(badge: "→")
         case .reject: return Kind(badge: "×")
-        default: return Kind(badge: Region.code(of: snapshot.exit), dimmed: health == .failed)
+        default:
+            let region = Region.code(of: snapshot.exit)
+            let role = mbEnabled ? GroupRole.current(exit: snapshot.exit, proxies: snapshot.proxies) : nil
+            let badge = region.map { region in role.map { "\($0.rawValue) \(region)" } ?? region }
+            return Kind(badge: badge, dimmed: health == .failed)
         }
     }
 

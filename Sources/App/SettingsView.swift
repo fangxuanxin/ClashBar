@@ -396,17 +396,74 @@ struct ControllerEditor: View {
 // MARK: - 关于
 
 struct AboutPane: View {
+    @EnvironmentObject private var prefs: Preferences
+    @ObservedObject private var updater = UpdateController.shared
+    @State private var showMBFeedback = false
+    @State private var mbFeedbackID = 0
+
     var body: some View {
         VStack(spacing: 12) {
             Spacer()
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable()
                 .frame(width: 96, height: 96)
+                .contentShape(Rectangle())
+                .onTapGesture(count: 5) {
+                    prefs.mbEnabled.toggle()
+                    showMBFeedback = true
+                    mbFeedbackID += 1
+                }
+                .overlay(alignment: .top) {
+                    if showMBFeedback {
+                        Text(L10n.t(prefs.mbEnabled ? "about.mb_enabled" : "about.mb_disabled"))
+                            .font(.callout)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                            .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+                            .fixedSize()
+                            .offset(y: -44)
+                            .allowsHitTesting(false)
+                    }
+                }
+                .task(id: mbFeedbackID) {
+                    guard showMBFeedback else { return }
+                    do { try await Task.sleep(nanoseconds: 2_000_000_000) }
+                    catch { return }
+                    showMBFeedback = false
+                }
+                .onDisappear { showMBFeedback = false }
             Text("ClashBar").font(.system(size: 22, weight: .bold))
             Text(versionText).foregroundStyle(.secondary)
             Text(L10n.t("about.tagline"))
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 360)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(updater.sourceTitle).font(.callout).foregroundStyle(.secondary)
+                if updater.supportsChecks {
+                    Toggle(L10n.t("updates.auto_check"), isOn: $updater.automaticChecks)
+                }
+                if updater.supportsInstallationPreference {
+                    Toggle(L10n.t("updates.auto_install"), isOn: $updater.automaticInstallation)
+                        .disabled(!updater.automaticChecks)
+                    Picker(L10n.t("updates.channel"), selection: $updater.channel) {
+                        ForEach(UpdateChannel.allCases) { channel in Text(channel.title).tag(channel) }
+                    }
+                }
+                if let message = updater.message {
+                    Text(message).font(.callout).lineLimit(3).help(message).textSelection(.enabled)
+                }
+                if let checked = updater.lastChecked {
+                    Text(L10n.t("updates.last_check", ["time": checked.formatted(date: .abbreviated, time: .shortened)]))
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                #if !APP_STORE
+                Button(updater.menuTitle) { updater.checkForUpdates() }
+                    .disabled(updater.isChecking || updater.isInstalling)
+                #endif
+            }
+            .frame(maxWidth: 410)
+            .padding(.horizontal, 12)
             Spacer()
         }
         .frame(maxWidth: .infinity)

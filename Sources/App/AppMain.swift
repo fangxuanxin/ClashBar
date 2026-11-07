@@ -9,6 +9,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if UPDATE_TESTING
+        if Bundle.main.object(forInfoDictionaryKey: "ClashBarUpdateTest") as? Bool == true {
+            let root = URL(fileURLWithPath: Bundle.main.object(forInfoDictionaryKey: "ClashBarUpdateTestRoot") as! String)
+            if Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String == "9002" {
+                let preserved = UserDefaults.standard.string(forKey: "updateSmokePreference") == "preserved"
+                try? Data((preserved ? "success" : "preference-lost").utf8).write(to: root.appendingPathComponent("result.txt"))
+                NSApp.terminate(nil)
+            } else {
+                UserDefaults.standard.set("preserved", forKey: "updateSmokePreference")
+                UserDefaults.standard.set("beta", forKey: "updateChannel")
+                UserDefaults.standard.synchronize()
+                UpdateController.shared.start()
+            }
+            return
+        }
+        #endif
         // 单实例：已有一个在跑就退出自己
         let me = ProcessInfo.processInfo.processIdentifier
         if let bundleID = Bundle.main.bundleIdentifier,
@@ -33,6 +49,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }.store(in: &cancellables)
 
         model.start()
+        UpdateController.shared.start()
+        UpdateController.shared.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async { self?.installMainMenu() }
+        }.store(in: &cancellables)
 
         // 首次启动且没有任何控制器时，稍后若检测失败就直接打开设置
         if prefs.controllers.isEmpty {
@@ -45,6 +65,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         model?.stop()
+        UpdateController.shared.stop()
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if UpdateController.shared.isInstalling {
+            let alert = NSAlert()
+            alert.messageText = L10n.t("updates.busy")
+            alert.runModal()
+            return .terminateCancel
+        }
+        return .terminateNow
     }
 
     /// 旧版遗留的快照与状态文件含有节点信息，升级后不再使用，直接删除
@@ -63,6 +94,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenu = NSMenu()
         appMenu.addItem(withTitle: L10n.t("menu.about"), action: #selector(showAbout), keyEquivalent: "").target = self
         appMenu.addItem(withTitle: L10n.t("menu.settings"), action: #selector(showSettings), keyEquivalent: ",").target = self
+        #if !APP_STORE
+        let updateItem = appMenu.addItem(withTitle: UpdateController.shared.menuTitle, action: #selector(checkUpdates), keyEquivalent: "")
+        updateItem.target = self
+        updateItem.isEnabled = !UpdateController.shared.isChecking && !UpdateController.shared.isInstalling
+        #endif
         appMenu.addItem(.separator())
         appMenu.addItem(withTitle: L10n.t("menu.quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = appMenu
@@ -91,6 +127,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showAbout() { settings.show(.about) }
     @objc private func showSettings() { settings.show(.general) }
+    @objc private func checkUpdates() { UpdateController.shared.checkForUpdates() }
 }
 
 @main

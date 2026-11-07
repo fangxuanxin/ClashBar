@@ -4,7 +4,7 @@ English | [简体中文](README.zh-CN.md)
 
 A native macOS menu bar app for Clash-API cores (Clash, Mihomo, sing-box). At a glance it tells you which country or region your default exit is in, and lets you switch modes and nodes without opening a dashboard.
 
-> Early development (v0.1.0). Builds are not yet signed with a Developer ID.
+> Early development (v0.1.2). Builds are not yet signed with a Developer ID.
 
 ## Install
 
@@ -56,7 +56,7 @@ If nothing works, Settings → Controllers opens and lists what was detected. A 
 
 ## Build
 
-Requirements: macOS 13+ and the Xcode Command Line Tools. Xcode and other dependencies are not needed.
+Requirements: macOS 13+ and Xcode Command Line Tools. Full Xcode is optional. Direct builds download and verify a pinned Sparkle framework on first use, then use the cached copy.
 
 ```sh
 Scripts/build.sh              # runs core tests, builds build/ClashBar.app
@@ -66,6 +66,16 @@ Scripts/make-icon.sh          # regenerate Resources/AppIcon.icns
 ```
 
 Set `SIGN_IDENTITY="Developer ID Application: …"` to sign with hardened runtime. Without it the build is ad hoc signed, which works locally but Gatekeeper blocks it once downloaded. Public releases need Developer ID signing and notarization.
+
+All build scripts share `Scripts/build-env.sh`. Optionally set `CLASHBAR_SSD_ROOT` (external working directory) and `CLASHBAR_SSD_UUID` (volume UUID) in the ignored `Scripts/build-storage.local.sh`. When that volume is mounted and writable, caches, temporary files and outputs go into its `ClashBar/build/`; otherwise they use the project's local `build/`. Source and Git stay in the project.
+
+An `Xcode.app` inside the external working directory is selected automatically when available; otherwise the local tools are used. The system `xcode-select` setting is unchanged. Use `CLASHBAR_STORAGE=local Scripts/build.sh` to force local storage. An explicit `DEVELOPER_DIR` takes priority. Xcode must be installed separately; GUI caches are not relocated. Keep the drive connected throughout a build.
+
+## Updates
+
+Developer ID signed direct builds use Sparkle for automatic checks, downloads and installation, with stable and beta channels. Homebrew installations check their owning tap and offer a confirmed Brew upgrade. Development builds open Releases; `CLASHBAR_DISTRIBUTION=app-store` excludes Sparkle and external update controls for future store distribution.
+
+Existing v0.1.1 installations need one manual upgrade. Production direct updates require Developer ID signing, notarization and publication of the signed feed; these have not been published as part of this implementation. See [update and release procedures](docs/updates.md) for candidate generation, key backups and integration tests.
 
 ## Layout
 

@@ -2,14 +2,15 @@
 # 重新生成 Resources/AppIcon.icns（改了 make-icon.swift 后运行）
 set -euo pipefail
 cd "$(dirname "$0")/.."
-WORK="build/icon"
-rm -rf "$WORK" && mkdir -p "$WORK/AppIcon.iconset" build/ModuleCache
-FLAGS=(-module-cache-path build/ModuleCache)
-OLD_MAP=/Library/Developer/CommandLineTools/usr/include/swift/module.modulemap
-if [[ -f "$OLD_MAP" && -f /Library/Developer/CommandLineTools/usr/include/swift/bridging.modulemap ]]; then
-    : > build/empty.modulemap
-    printf '{"version":0,"roots":[{"type":"file","name":"%s","external-contents":"%s"}]}' "$OLD_MAP" "$PWD/build/empty.modulemap" > build/overlay.json
-    FLAGS+=(-vfsoverlay build/overlay.json -Xcc -ivfsoverlay -Xcc build/overlay.json)
+source Scripts/build-env.sh
+WORK="$CLASHBAR_BUILD_DIR/icon"
+rm -rf "$WORK" && mkdir -p "$WORK/AppIcon.iconset" "$CLASHBAR_BUILD_DIR/ModuleCache"
+FLAGS=(-module-cache-path "$CLASHBAR_BUILD_DIR/ModuleCache")
+OLD_MAP="$DEVELOPER_DIR/usr/include/swift/module.modulemap"
+if [[ -f "$OLD_MAP" && -f "$DEVELOPER_DIR/usr/include/swift/bridging.modulemap" ]]; then
+    : > "$CLASHBAR_BUILD_DIR/empty.modulemap"
+    printf '{"version":0,"roots":[{"type":"file","name":"%s","external-contents":"%s"}]}' "$OLD_MAP" "$CLASHBAR_BUILD_DIR/empty.modulemap" > "$CLASHBAR_BUILD_DIR/overlay.json"
+    FLAGS+=(-vfsoverlay "$CLASHBAR_BUILD_DIR/overlay.json" -Xcc -ivfsoverlay -Xcc "$CLASHBAR_BUILD_DIR/overlay.json")
 fi
 xcrun swiftc "${FLAGS[@]}" -parse-as-library Scripts/make-icon.swift Sources/App/CatGlyph.swift -o "$WORK/make-icon"
 "$WORK/make-icon" "$WORK/icon_1024.png"

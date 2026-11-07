@@ -23,6 +23,9 @@ final class Preferences: ObservableObject {
     @Published var showLatency: Bool {
         didSet { defaults.set(showLatency, forKey: "showLatency") }
     }
+    @Published var mbEnabled: Bool {
+        didSet { defaults.set(mbEnabled, forKey: "mbEnabled") }
+    }
     /// nil 表示自动检测
     @Published var activeControllerID: UUID? {
         didSet { defaults.set(activeControllerID?.uuidString, forKey: "activeController") }
@@ -51,6 +54,7 @@ final class Preferences: ObservableObject {
         refreshInterval = Self.refreshChoices.contains(interval) ? interval : 30
         testURL = defaults.string(forKey: "testURL") ?? Self.defaultTestURL
         showLatency = defaults.bool(forKey: "showLatency")
+        mbEnabled = defaults.bool(forKey: "mbEnabled")
         activeControllerID = defaults.string(forKey: "activeController").flatMap(UUID.init(uuidString:))
         L10n.selection = language
         loadControllers()

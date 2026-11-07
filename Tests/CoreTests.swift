@@ -263,6 +263,8 @@ func testRegion() {
 enum TestMain {
     static func main() async {
         await testSavedControllerSelection()
+        testUpdatePolicy()
+        testGroupRole()
         testResolveViaMatch()
         testResolveOtherBranch()
         testResolveDirectNodeSelected()

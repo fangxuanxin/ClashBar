@@ -4,7 +4,7 @@
 
 原生 macOS 菜单栏应用，适用于提供 Clash API 的内核（Clash、Mihomo、sing-box）。在菜单栏就能看到默认出口落在哪个国家或地区，不用打开面板就能切换模式和节点。
 
-> 早期开发中（v0.1.0），暂未使用 Developer ID 签名。
+> 早期开发中（v0.1.2），暂未使用 Developer ID 签名。
 
 ## 安装
 
@@ -66,7 +66,7 @@ ClashBar 不会自己切换节点。默认每 30 秒刷新一次，每次只用�
 
 ## 构建
 
-需要 macOS 13 及以上和 Xcode Command Line Tools，不需要 Xcode 或其它依赖。
+需要 macOS 13 及以上和 Xcode Command Line Tools，不强制安装完整 Xcode。直接下载版构建会首次下载并校验固定版本的 Sparkle 框架，之后使用缓存。
 
 ```sh
 Scripts/build.sh              # 跑核心测试，生成 build/ClashBar.app
@@ -76,6 +76,16 @@ Scripts/make-icon.sh          # 重新生成 Resources/AppIcon.icns
 ```
 
 设置 `SIGN_IDENTITY="Developer ID Application: …"` 可用 hardened runtime 签名。不设时为临时（ad hoc）签名，本机能用，但下载后会被 Gatekeeper 拦下。公开发布需要 Developer ID 签名并公证。
+
+构建、图标、安装和打包脚本共用 `Scripts/build-env.sh`。默认产物在项目的 `build/`；可在不纳入 Git 的 `Scripts/build-storage.local.sh` 中设置 `CLASHBAR_SSD_ROOT`（外置工作目录）和 `CLASHBAR_SSD_UUID`（卷 UUID）。指定卷已挂载且目录可写时，缓存、临时文件和产物放到该目录的 `ClashBar/build/`，否则自动回退本机 `build/`。源码和 Git 始终留在项目中。
+
+外置工作目录内存在 `Xcode.app` 时，构建会自动使用它；没有时继续使用本机工具。只对当前脚本进程设置工具链，不修改系统的 `xcode-select`。可用 `CLASHBAR_STORAGE=local Scripts/build.sh` 强制本机编译；显式设置的 `DEVELOPER_DIR` 优先。完整 Xcode 需另行安装，本配置不会下载它，也不迁移 Xcode 图形界面的缓存。编译过程中请保持硬盘连接。
+
+## 自动更新
+
+已接入 Sparkle：Developer ID 签名的直接下载版支持自动检查、下载安装及正式版/测试版通道；Homebrew 安装支持在应用中检查并确认升级；开发构建打开 Releases。未来商店构建用 `CLASHBAR_DISTRIBUTION=app-store` 排除 Sparkle。
+
+公开 v0.1.1 需手动升级一次。正式启用直接下载版自动更新还需要 Developer ID 签名、公证和发布已签名更新源；本次开发未发布这些产物。发布候选、私钥备份及真实升级测试见 [自动更新与发布](docs/updates.md)。
 
 ## 目录结构
 

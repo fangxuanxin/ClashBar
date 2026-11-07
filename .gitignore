@@ -1,4 +1,8 @@
 build/
+Scripts/build-storage.local.sh
+*.privatekey
+*.p12
+*.p8
 .DS_Store
 *.app/
 *.dmg

@@ -32,6 +32,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             model.$snapshot.map { _ in () }.eraseToAnyPublisher(),
             model.$health.map { _ in () }.eraseToAnyPublisher(),
             prefs.$showLatency.map { _ in () }.eraseToAnyPublisher(),
+            prefs.$mbEnabled.map { _ in () }.eraseToAnyPublisher(),
             prefs.$language.map { _ in () }.eraseToAnyPublisher()
         )
         .receive(on: DispatchQueue.main)
@@ -44,7 +45,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     private func updateButton() {
         guard let button = statusItem.button else { return }
-        let kind = StatusIcon.kind(phase: model.phase, snapshot: model.snapshot, health: model.health)
+        let kind = StatusIcon.kind(phase: model.phase, snapshot: model.snapshot, health: model.health, mbEnabled: prefs.mbEnabled)
         button.image = StatusIcon.image(for: kind)
         if prefs.showLatency, model.phase == .ready, case .ok(let ms) = model.health {
             button.title = " \(ms)"
@@ -118,6 +119,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         if !prefs.controllers.isEmpty { menu.addItem(controllerItem()) }
         menu.addItem(action(L10n.t("menu.settings"), ",", "gearshape", #selector(openGeneral)))
         menu.addItem(action(L10n.t("menu.about"), "", "info.circle", #selector(openAbout)))
+        #if !APP_STORE
+        let updater = UpdateController.shared
+        menu.addItem(action(updater.menuTitle, "", "arrow.down.circle", #selector(checkUpdates), enabled: !updater.isChecking && !updater.isInstalling))
+        #endif
         menu.addItem(.separator())
         menu.addItem(action(L10n.t("menu.quit"), "q", "power", #selector(quit)))
     }
@@ -296,6 +301,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func openControllers() { openSettings(.controllers) }
     @objc private func openAbout() { openSettings(.about) }
     @objc private func quit() { NSApp.terminate(nil) }
+    @objc private func checkUpdates() { UpdateController.shared.checkForUpdates() }
 
     @objc private func selectMode(_ sender: NSMenuItem) {
         guard let raw = sender.representedObject as? String, let mode = OutboundMode(rawValue: raw) else { return }
