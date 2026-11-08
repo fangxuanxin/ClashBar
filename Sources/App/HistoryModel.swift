@@ -60,10 +60,12 @@ final class HistoryModel: ObservableObject {
         } catch is CancellationError {} catch { self.error = error.localizedDescription }
     }
 
-    func sample(controller: ControllerConfig, node: String, delay: Int?, at time: Date, token: Int) async {
+    func sample(controller: ControllerConfig, node: String, delay: Int?, at time: Date, token: Int,
+                origin: String = "clashbar", testURL: String = "") async {
         guard enabled, token == generation, let service else { return }
         do {
-            try await service.sample(controller: HistoryIdentity.key(for: controller), node: node, delay: delay, at: time)
+            try await service.sample(controller: HistoryIdentity.key(for: controller), node: node, delay: delay, at: time,
+                                     origin: origin, testURL: testURL)
             revision += 1
         } catch is CancellationError {} catch { self.error = error.localizedDescription }
     }

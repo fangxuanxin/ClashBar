@@ -4,7 +4,7 @@
 
 Open **Switch History…** (⌘H) to inspect the last hour, 24 hours, 7 days or 30 days. Filter by controller or group, inspect full nested selection paths, and compare observed node selection durations, median test latency and failed tests. Path changes through different groups are retained even when the terminal node stays the same. Mode and group configuration changes are separate events.
 
-History starts when recording is enabled. Polling may miss transitions between refreshes; timestamps indicate detection time. Sleep, disconnection and paused recording leave gaps. Load balancing has no single terminal node. Tests cover only the default exit; failures do not prove outages and selection duration is not uptime or traffic usage.
+History starts when recording is enabled. Polling may miss transitions between refreshes; timestamps indicate detection time. Sleep, disconnection and paused recording leave gaps. Load balancing has no single terminal node. Test samples come from existing core results for the observed exit node, retain their original timestamps and are deduplicated. Legacy ClashBar active tests remain separately selectable. Test failures do not prove outages and selection duration is not uptime or traffic usage.
 
 Records stay in the local application support directory at `History/history.sqlite`, readable only by the current user. The database contains no plaintext controller secrets or addresses, visited domains or connection details. It retains 30 days plus up to five daily recovery backups, which may contain older records. Pause recording or clear all controller history and backups from the history window. Removing a controller configuration does not automatically remove its history. History is not uploaded to the developer.
 
@@ -30,7 +30,7 @@ Or download `ClashBar.zip` from [Releases](https://github.com/fangxuanxin/ClashB
 | --- | --- |
 | Line-drawn cat + **US** / **JP** / **HK** … | Region of the default exit node |
 | Cat only | Region could not be recognised from the node or group names |
-| Faded cat | The current node did not answer the latency test, or still connecting |
+| Faded cat | The core’s latest check failed, or still connecting; this does not establish an outage |
 | Cat + **→** | Direct mode, or the default group selects `DIRECT` |
 | Cat + **×** | The default exit is `REJECT` |
 | Cat + **!** | Controller unreachable, wrong secret, or not configured |
@@ -43,12 +43,12 @@ Click the icon to open the menu:
 
 - **Status card**: exit group, node, latency, mode, core version, and last update time.
 - **Outbound Mode**: Rule / Global / Direct (⌘1 / ⌘2 / ⌘3).
-- **Proxy Groups**: each group shows its current selection. Open a group to see its members and their latest latency, pick a member (Selector groups only), or test the group.
-- **Test Latency** (⌘T), **Refresh** (⌘R), **Copy Exit Info** (⌘C).
+- **Proxy Groups**: each group shows its current selection. Open a group to see its members and existing core latency results, or pick a member (Selector groups only).
+- **Refresh** (⌘R), **Copy Exit Info** (⌘C).
 - **Controller**: switch between saved controllers and automatic detection.
 - **Settings…** (⌘,).
 
-ClashBar never switches nodes on its own. It refreshes every 30 seconds by default, and each refresh tests only the current exit node with a single request.
+ClashBar never switches nodes automatically or initiates extra latency tests. It reads controller state every 30 seconds by default, preferring existing core results for the exit group's health-check URL. Existing scripts such as FXProxy X and the core remain responsible for testing. Missing timestamps or results older than 10 minutes are shown as unknown without probing. Active-test controls and the test URL setting have been removed.
 
 ## Controllers
 

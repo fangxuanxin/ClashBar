@@ -66,6 +66,7 @@ struct HistoryView: View {
     @State private var loadError: String?
     @State private var confirmingClear = false
     @State private var eventLimit = 100
+    @State private var sampleOrigin = "core"
 
     init(history: HistoryModel, model: AppModel, prefs: Preferences, initialTab: Int = 0, initialGroup: String = "", initialHours: Int = 24) {
         self.history = history
@@ -91,10 +92,11 @@ struct HistoryView: View {
         }
     }
     private var scopedSamples: [HistorySample] {
-        guard let selectedGroup else { return report.samples }
+        let samples = report.samples.filter { $0.origin == sampleOrigin }
+        guard let selectedGroup else { return samples }
         let records = intervals
         var intervalIndex = 0
-        return report.samples.filter { sample in
+        return samples.filter { sample in
             while intervalIndex + 1 < records.count && records[intervalIndex + 1].start <= sample.time { intervalIndex += 1 }
             guard intervalIndex < records.count else { return false }
             let interval = records[intervalIndex]
@@ -117,6 +119,10 @@ struct HistoryView: View {
                 Spacer()
             }
             Divider()
+            Picker(HistoryText.text("Sample source", "测速样本来源"), selection: $sampleOrigin) {
+                Text(HistoryText.text("Existing core records", "内核已有记录")).tag("core")
+                Text(HistoryText.text("Legacy ClashBar tests", "旧版 ClashBar 主动测速")).tag("clashbar")
+            }.frame(maxWidth: 400)
             if intervals.isEmpty {
                 Spacer()
                 VStack(spacing: 12) {
@@ -134,8 +140,8 @@ struct HistoryView: View {
             }
             Divider()
             Text(HistoryText.text(
-                "Observed selections, not every connection. Gaps mean no data. Tests cover the default exit only; a failed test does not prove an outage. History is kept locally for 30 days; up to 5 daily recovery backups may contain older records.",
-                "记录的是观测到的选择，不代表每条连接。空白表示无数据。仅对默认出口测速，失败不等于实际断网。本地保留 30 天，最多 5 份每日恢复备份可能含更早记录。"))
+                "ClashBar reads existing core tests without initiating probes. Samples retain the core timestamp and are deduplicated. Gaps mean no data; a failed test does not prove an outage. Records stay locally for 30 days plus up to 5 recovery backups.",
+                "ClashBar 只读取内核已有测速，不主动探测；按内核时间记录并去重。空白表示无数据，检测失败不代表断网。本地保留 30 天，另有最多 5 份恢复备份。"))
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
         .padding(22)

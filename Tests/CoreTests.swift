@@ -276,6 +276,7 @@ enum TestMain {
         testGroupOrder()
         testRegion()
         testParseConfig()
+        testPassiveLatency()
         testDiscoveryNaming()
         testControllerAddress()
         testDecoding()

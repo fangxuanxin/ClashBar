@@ -14,7 +14,7 @@ ClashBar 是连接用户已有 Clash API 控制器的菜单栏工具，不提供
 
 应用向用户配置的控制器发起 HTTP/HTTPS 请求，并携带对应口令。明文 HTTP 不加密地址与口令，请只在可信网络使用，远程连接优先使用 HTTPS。商店版可能探测本机 9090、9097 端口，不自动读取其他应用的配置或扫描网关。
 
-延迟测试由控制器访问用户设置的测试网址，默认 https://www.gstatic.com/generate_204。测试站点及网络服务提供方可能获知连接出口 IP 和请求信息，其处理方式由各自隐私政策约束。节点地区根据节点或分组名称识别，不访问设备定位。仅本地网络连接需要时，macOS 可能请求本地网络权限；拒绝权限可能导致局域网控制器不可用。
+ClashBar 不发起额外的节点或分组测速，仅读取已有内核健康检查的时间、结果和测试网址，按原时间去重保存。健康检查仍由用户的代理内核或既有脚本负责。旧版主动测速记录会保留并单独标识。节点地区根据节点或分组名称识别，不访问设备定位。仅本地网络连接需要时，macOS 可能请求本地网络权限；拒绝权限可能导致局域网控制器不可用。
 
 应用更新由 Mac App Store 负责。用户主动打开项目支持页面后，由 GitHub 按其隐私政策处理网页访问。问题和隐私请求可通过 https://github.com/fangxuanxin/ClashBar/issues 联系，请勿在公开反馈中附带口令或私人配置。
 
@@ -26,6 +26,6 @@ Controller names, addresses and secrets are stored in the app sandbox on your Ma
 
 The app sends HTTP/HTTPS requests, including your configured secret, to your controller. HTTP does not encrypt the address or secret; use trusted networks and prefer HTTPS for remote access. The store version may probe local ports 9090 and 9097. It does not automatically read other apps’ configurations or scan the gateway.
 
-Latency tests instruct the controller to contact your test URL, defaulting to https://www.gstatic.com/generate_204. The destination and network providers may receive the exit IP and request details under their own privacy policies. Region labels come from node or group names, not device location. macOS may request local network permission; denying it may prevent access to LAN controllers.
+ClashBar does not initiate node or group latency tests. It reads existing core health-check timestamps, results and test URLs, deduplicating samples by their original timestamp. Your core or existing scripts remain responsible for testing. Legacy active-test records are preserved and labeled separately. Region labels come from node or group names, not device location. macOS may request local network permission; denying it may prevent access to LAN controllers.
 
 Updates are handled by the Mac App Store. Opening project support pages subjects web visits to GitHub’s privacy policy. Contact us at https://github.com/fangxuanxin/ClashBar/issues for support or privacy requests. Do not include secrets or private configurations in public issues.

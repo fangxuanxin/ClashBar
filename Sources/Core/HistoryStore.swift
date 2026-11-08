@@ -30,7 +30,7 @@ final class HistoryStore {
             try execute("PRAGMA journal_mode = WAL")
             try execute("PRAGMA secure_delete = ON")
             let version = try query("PRAGMA user_version") { sqlite3_column_int($0, 0) }.first ?? 0
-            guard version <= 1 else { throw StoreError.database("History schema is newer than this app") }
+            guard version <= 2 else { throw StoreError.database("History schema is newer than this app") }
             if version == 0 {
                 try transaction {
                     try execute("CREATE TABLE intervals (id TEXT PRIMARY KEY, controller TEXT NOT NULL, label TEXT NOT NULL, start REAL NOT NULL, end REAL NOT NULL, session TEXT NOT NULL, state TEXT NOT NULL, kind TEXT NOT NULL, source TEXT NOT NULL)")
@@ -38,6 +38,15 @@ final class HistoryStore {
                     try execute("CREATE TABLE samples (controller TEXT NOT NULL, time REAL NOT NULL, node TEXT NOT NULL, delay INTEGER)")
                     try execute("CREATE INDEX samples_controller_time ON samples(controller, time)")
                     try execute("PRAGMA user_version = 1")
+                }
+            }
+            if version < 2 {
+                if version == 1 { try backup(at: Date()) }
+                try transaction {
+                    try execute("ALTER TABLE samples ADD COLUMN origin TEXT NOT NULL DEFAULT 'clashbar'")
+                    try execute("ALTER TABLE samples ADD COLUMN test_url TEXT NOT NULL DEFAULT ''")
+                    try execute("CREATE UNIQUE INDEX samples_core_identity ON samples(controller,node,time,test_url) WHERE origin = 'core'")
+                    try execute("PRAGMA user_version = 2")
                 }
             }
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
@@ -134,8 +143,9 @@ final class HistoryStore {
         }
     }
 
-    func sample(controller: String, node: String, delay: Int?, at time: Date) throws {
-        try execute("INSERT INTO samples VALUES (?,?,?,?)", [controller, time.timeIntervalSince1970, node, delay])
+    func sample(controller: String, node: String, delay: Int?, at time: Date, origin: String = "clashbar", testURL: String = "") throws {
+        try execute("INSERT OR IGNORE INTO samples(controller,time,node,delay,origin,test_url) VALUES (?,?,?,?,?,?)",
+                    [controller, time.timeIntervalSince1970, node, delay, origin, testURL])
     }
 
     func report(controller: String?, from start: Date, to end: Date) throws -> HistoryReport {
@@ -145,9 +155,10 @@ final class HistoryStore {
         }
         guard let controller else { return report }
         report.intervals = try query("SELECT id,start,end,session,state,kind,source FROM intervals WHERE controller = ? AND end >= ? AND start <= ? ORDER BY start, rowid", [controller, start.timeIntervalSince1970, end.timeIntervalSince1970], map: decodeInterval)
-        report.samples = try query("SELECT time,node,delay FROM samples WHERE controller = ? AND time >= ? AND time <= ? ORDER BY time", [controller, start.timeIntervalSince1970, end.timeIntervalSince1970]) {
+        report.samples = try query("SELECT time,node,delay,origin,test_url FROM samples WHERE controller = ? AND time >= ? AND time <= ? ORDER BY time", [controller, start.timeIntervalSince1970, end.timeIntervalSince1970]) {
             HistorySample(time: Date(timeIntervalSince1970: sqlite3_column_double($0, 0)), node: self.string($0, 1),
-                          delay: sqlite3_column_type($0, 2) == SQLITE_NULL ? nil : Int(sqlite3_column_int($0, 2)))
+                          delay: sqlite3_column_type($0, 2) == SQLITE_NULL ? nil : Int(sqlite3_column_int($0, 2)),
+                          origin: self.string($0, 3), testURL: self.string($0, 4))
         }
         return report
     }
@@ -212,9 +223,9 @@ actor HistoryService {
                           maximumGap: maximumGap, source: source)
     }
 
-    func sample(controller: String, node: String, delay: Int?, at time: Date) throws {
+    func sample(controller: String, node: String, delay: Int?, at time: Date, origin: String, testURL: String) throws {
         try Task.checkCancellation()
-        try store.sample(controller: controller, node: node, delay: delay, at: time)
+        try store.sample(controller: controller, node: node, delay: delay, at: time, origin: origin, testURL: testURL)
     }
 
     func report(controller: String?, from start: Date, to end: Date) throws -> HistoryReport {

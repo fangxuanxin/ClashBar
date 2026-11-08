@@ -72,6 +72,8 @@ struct HistorySample {
     var time: Date
     var node: String
     var delay: Int?
+    var origin: String = "clashbar"
+    var testURL: String = ""
 }
 
 struct HistoryControllerInfo: Identifiable, Equatable {

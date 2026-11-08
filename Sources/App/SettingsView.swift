@@ -98,8 +98,8 @@ struct GeneralPane: View {
                         Text(Self.intervalTitle(seconds)).tag(seconds)
                     }
                 }
-                TextField(L10n.t("settings.test_url"), text: $prefs.testURL)
-                    .textFieldStyle(.roundedBorder)
+                Text(L10n.t("settings.passive_latency"))
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle(L10n.t("settings.login"), isOn: Binding(
                     get: { prefs.launchAtLogin || prefs.launchNeedsApproval },
                     set: { enabled in

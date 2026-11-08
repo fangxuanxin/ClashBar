@@ -7,7 +7,6 @@ final class Preferences: ObservableObject {
     static let shared = Preferences()
 
     static let refreshChoices = [10, 30, 60, 300]
-    static let defaultTestURL = "https://www.gstatic.com/generate_204"
 
     private let defaults = UserDefaults.standard
 
@@ -16,9 +15,6 @@ final class Preferences: ObservableObject {
     }
     @Published var refreshInterval: Int {
         didSet { defaults.set(refreshInterval, forKey: "refreshInterval") }
-    }
-    @Published var testURL: String {
-        didSet { defaults.set(testURL, forKey: "testURL") }
     }
     @Published var showLatency: Bool {
         didSet { defaults.set(showLatency, forKey: "showLatency") }
@@ -36,13 +32,6 @@ final class Preferences: ObservableObject {
         activeControllerID.flatMap { id in controllers.first { $0.id == id } }
     }
 
-    /// 测速地址为空或非法时回落到默认值
-    var effectiveTestURL: String {
-        let value = testURL.trimmingCharacters(in: .whitespaces)
-        guard let url = URL(string: value), url.scheme?.hasPrefix("http") == true else { return Self.defaultTestURL }
-        return value
-    }
-
     static var supportDirectory: URL {
         FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/ClashBar", isDirectory: true)
     }
@@ -52,7 +41,6 @@ final class Preferences: ObservableObject {
         language = AppLanguage(rawValue: defaults.string(forKey: "language") ?? "") ?? .system
         let interval = defaults.integer(forKey: "refreshInterval")
         refreshInterval = Self.refreshChoices.contains(interval) ? interval : 30
-        testURL = defaults.string(forKey: "testURL") ?? Self.defaultTestURL
         showLatency = defaults.bool(forKey: "showLatency")
         mbEnabled = defaults.bool(forKey: "mbEnabled")
         activeControllerID = defaults.string(forKey: "activeController").flatMap(UUID.init(uuidString:))

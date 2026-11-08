@@ -85,7 +85,7 @@ enum HistoryAppTests {
             if offset == 1800 { history.interrupt() }
             await record(Double(offset))
             await history.sample(controller: controller, node: snapshot().exit.node!, delay: offset % 300 == 0 ? nil : 90 + offset % 150,
-                                 at: origin.addingTimeInterval(Double(offset)), token: history.observationGeneration)
+                                 at: origin.addingTimeInterval(Double(offset)), token: history.observationGeneration, origin: "core")
         }
         let populated = try await report()
         precondition(populated.changes(group: nil).count == 2, "节点变化和同节点换分组均记录")

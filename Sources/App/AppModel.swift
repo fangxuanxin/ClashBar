@@ -3,10 +3,9 @@ import Combine
 import Foundation
 import Network
 
-/// 当前出口节点的连通性
+/// 当前出口节点已有的内核健康检查结果
 enum NodeHealth: Equatable {
     case unknown
-    case testing
     case ok(Int)
     case failed
     /// DIRECT / REJECT 等无需测速
@@ -29,7 +28,7 @@ struct ClashSnapshot {
     }
 }
 
-/// 应用状态中心：负责定时刷新、切换模式和节点、测速
+/// 应用状态中心：读取控制器状态，并响应用户切换模式和节点
 @MainActor
 final class AppModel: ObservableObject {
     enum Phase: Equatable {
@@ -43,10 +42,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var health: NodeHealth = .unknown
     @Published private(set) var lastUpdated: Date?
     @Published private(set) var isRefreshing = false
-    @Published private(set) var testingGroups: Set<String> = []
     @Published private(set) var actionError: String?
 
     private let prefs: Preferences
+    private let controllerOverride: ControllerConfig?
     let history: HistoryModel
     private var refreshGeneration = 0
     private var timer: Timer?
@@ -61,8 +60,9 @@ final class AppModel: ObservableObject {
     private var startupRetries = 0
     private var cancellables = Set<AnyCancellable>()
 
-    init(prefs: Preferences, history: HistoryModel? = nil) {
+    init(prefs: Preferences, history: HistoryModel? = nil, controller: ControllerConfig? = nil) {
         self.prefs = prefs
+        controllerOverride = controller
         self.history = history ?? HistoryModel()
     }
 
@@ -159,6 +159,7 @@ final class AppModel: ObservableObject {
     }
 
     private func resolveController() async throws -> ControllerConfig {
+        if let controllerOverride { return controllerOverride }
         if let active = prefs.activeController { return active }
         if let autoController { return autoController }
         if !prefs.controllers.isEmpty {
@@ -202,7 +203,6 @@ final class AppModel: ObservableObject {
             if Task.isCancelled { return }
 
             let exit = ExitResolver.resolve(mode: configs.mode, proxies: proxies, rules: rules)
-            let previousNode = snapshot?.exit.node
             snapshot = ClashSnapshot(controller: controller, version: Discovery.coreLabel(version), mode: configs.mode, proxies: proxies,
                                      groups: ExitResolver.orderedGroups(proxies, mode: configs.mode), exit: exit)
             phase = .ready
@@ -211,8 +211,7 @@ final class AppModel: ObservableObject {
             lastUpdated = observedAt
             if let snapshot { await history.observe(snapshot, interval: prefs.refreshInterval, at: observedAt, token: historyToken) }
             if Task.isCancelled { return }
-            if exit.node != previousNode, case .ok = health { health = .unknown }
-            await checkHealth(client: client, exit: exit, proxies: proxies, historyToken: historyToken, observedAt: observedAt)
+            await readHealth(controller: controller, exit: exit, proxies: proxies, historyToken: historyToken, observedAt: observedAt)
         } catch is CancellationError {
             return
         } catch let error as ClashError {
@@ -249,18 +248,20 @@ final class AppModel: ObservableObject {
         phase = .failed(error)
     }
 
-    /// 只测当前出口节点：一次请求，开销很小
-    private func checkHealth(client: ClashClient, exit: ExitInfo, proxies: [String: ProxyItem], historyToken: Int, observedAt: Date) async {
+    private func readHealth(controller: ControllerConfig, exit: ExitInfo, proxies: [String: ProxyItem], historyToken: Int, observedAt: Date) async {
         guard let node = exit.node, let proxy = proxies[node], !proxy.isGroup, !proxy.isBuiltin,
               exit.family != .direct, exit.family != .reject else {
             health = .notApplicable
             return
         }
-        if health == .unknown { health = .testing }
-        let delay = await client.delay(of: node, testURL: prefs.effectiveTestURL)
-        guard !Task.isCancelled, snapshot?.exit.node == node else { return }
-        health = delay.map { .ok($0) } ?? .failed
-        await history.sample(controller: client.config, node: node, delay: delay, at: observedAt, token: historyToken)
+        guard let reading = PassiveLatency.read(exit: exit, proxies: proxies), reading.isRecent(at: observedAt),
+              let measuredAt = reading.sample.date else {
+            health = .unknown
+            return
+        }
+        health = reading.sample.delay > 0 ? .ok(reading.sample.delay) : .failed
+        await history.sample(controller: controller, node: node, delay: reading.sample.delay > 0 ? reading.sample.delay : nil,
+                             at: measuredAt, token: historyToken, origin: "core", testURL: reading.testURL ?? "")
     }
 
     // MARK: - 操作
@@ -294,45 +295,6 @@ final class AppModel: ObservableObject {
         perform { client in
             try await client.select(group: group, node: node)
             self.history.requested(controller: client.config, group: group, value: node)
-        }
-    }
-
-    /// 测一个分组；内核会把结果写进 history，刷新后菜单即可显示新延迟
-    func testGroup(_ name: String) {
-        guard let controller = snapshot?.controller, !testingGroups.contains(name) else { return }
-        testingGroups.insert(name)
-        let url = prefs.effectiveTestURL
-        Task {
-            _ = try? await ClashClient(config: controller).groupDelay(of: name, testURL: url)
-            testingGroups.remove(name)
-            refresh()
-        }
-    }
-
-    /// 测出口路径上的分组（最多 4 组并发）；路径上没有分组时测全部
-    func testLatency() {
-        guard let snapshot else { return }
-        let chainGroups = snapshot.exit.chain.filter { snapshot.proxies[$0]?.isGroup == true }
-        var names: [String] = []
-        for name in chainGroups where !names.contains(name) && name != "GLOBAL" { names.append(name) }
-        if names.isEmpty { names = snapshot.groups.map(\.name).filter { $0 != "GLOBAL" } }
-        let controller = snapshot.controller
-        let url = prefs.effectiveTestURL
-        testingGroups.formUnion(names)
-        health = .testing
-        Task {
-            await withTaskGroup(of: Void.self) { group in
-                var iterator = names.makeIterator()
-                func next() -> Bool {
-                    guard let name = iterator.next() else { return false }
-                    group.addTask { _ = try? await ClashClient(config: controller).groupDelay(of: name, testURL: url) }
-                    return true
-                }
-                for _ in 0..<4 { if !next() { break } }
-                while await group.next() != nil { _ = next() }
-            }
-            testingGroups.subtract(names)
-            refresh()
         }
     }
 

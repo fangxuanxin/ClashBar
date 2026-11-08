@@ -123,8 +123,6 @@ struct HeaderCard: View {
                 pill(text: "\(ms) ms", color: Self.delayColor(ms))
             case .failed:
                 pill(text: L10n.t("card.timeout"), color: .red)
-            case .testing:
-                pill(text: L10n.t("card.testing"), color: .secondary)
             case .unknown, .notApplicable:
                 EmptyView()
             }

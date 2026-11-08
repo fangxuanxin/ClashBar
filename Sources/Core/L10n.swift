@@ -112,7 +112,7 @@ enum L10n {
             "card.direct.hint": "Traffic is not going through a proxy.",
             "card.reject": "Rejecting traffic",
             "card.testing": "Testing…",
-            "card.timeout": "No response",
+            "card.timeout": "Core check failed",
             "card.alive": "{alive}/{total} nodes alive",
             "card.updated": "Updated {time}",
             "card.just_now": "just now",
@@ -132,7 +132,8 @@ enum L10n {
             "copy.text": "Group: {group}\nNode: {node}\nPath: {path}\nMode: {mode}\nController: {controller}",
 
             "tooltip.other": "{group} · {node}",
-            "tooltip.unhealthy": "Current node is not responding",
+            "tooltip.unhealthy": "The core’s latest health check failed; this does not establish an outage",
+            "settings.passive_latency": "Latency is read from existing core health checks. ClashBar does not initiate tests.",
 
             "settings.title": "ClashBar Settings",
             "settings.general": "General",
@@ -261,7 +262,7 @@ enum L10n {
             "card.direct.hint": "流量没有经过代理。",
             "card.reject": "正在拒绝流量",
             "card.testing": "测试中…",
-            "card.timeout": "无响应",
+            "card.timeout": "内核检测失败",
             "card.alive": "{alive}/{total} 个节点在线",
             "card.updated": "{time}更新",
             "card.just_now": "刚刚",
@@ -281,7 +282,8 @@ enum L10n {
             "copy.text": "分组：{group}\n节点：{node}\n路径：{path}\n模式：{mode}\n控制器：{controller}",
 
             "tooltip.other": "{group} · {node}",
-            "tooltip.unhealthy": "当前节点无响应",
+            "tooltip.unhealthy": "内核最近一次健康检查失败，不代表实际断线",
+            "settings.passive_latency": "延迟读取内核已有的健康检查记录，ClashBar 不发起额外测速。",
 
             "settings.title": "ClashBar 设置",
             "settings.general": "通用",

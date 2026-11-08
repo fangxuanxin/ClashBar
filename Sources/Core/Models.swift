@@ -4,6 +4,21 @@ import Foundation
 
 struct ProxyHistory: Decodable, Equatable {
     let delay: Int
+    var time: String? = nil
+
+    var date: Date? {
+        guard let time else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: time) { return date }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: time)
+    }
+}
+
+struct ProxyTestState: Decodable, Equatable {
+    var history: [ProxyHistory]
+    var alive: Bool?
 }
 
 /// /proxies 里的一项：可能是节点，也可能是分组（有 all 字段即为分组）
@@ -15,13 +30,17 @@ struct ProxyItem: Decodable, Equatable {
     let history: [ProxyHistory]
     let alive: Bool?
     let hidden: Bool?
+    let testURL: String?
+    let extra: [String: ProxyTestState]
 
-    enum CodingKeys: String, CodingKey { case name, type, now, all, history, alive, hidden }
+    enum CodingKeys: String, CodingKey { case name, type, now, all, history, alive, hidden, extra; case testURL = "testUrl" }
 
     init(name: String, type: String, now: String? = nil, all: [String]? = nil,
-         history: [ProxyHistory] = [], alive: Bool? = nil, hidden: Bool? = nil) {
+         history: [ProxyHistory] = [], alive: Bool? = nil, hidden: Bool? = nil,
+         testURL: String? = nil, extra: [String: ProxyTestState] = [:]) {
         self.name = name; self.type = type; self.now = now; self.all = all
         self.history = history; self.alive = alive; self.hidden = hidden
+        self.testURL = testURL; self.extra = extra
     }
 
     init(from decoder: Decoder) throws {
@@ -33,6 +52,8 @@ struct ProxyItem: Decodable, Equatable {
         history = (try? c.decodeIfPresent([ProxyHistory].self, forKey: .history)) ?? []
         alive = try? c.decodeIfPresent(Bool.self, forKey: .alive)
         hidden = try? c.decodeIfPresent(Bool.self, forKey: .hidden)
+        testURL = try? c.decodeIfPresent(String.self, forKey: .testURL)
+        extra = (try? c.decodeIfPresent([String: ProxyTestState].self, forKey: .extra)) ?? [:]
     }
 
     var isGroup: Bool { all != nil }

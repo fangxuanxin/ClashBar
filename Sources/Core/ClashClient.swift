@@ -128,23 +128,6 @@ struct ClashClient: Sendable {
         _ = try await send("PUT", "/proxies/\(Self.encode(group))", body: ["name": node])
     }
 
-    /// 单节点测速；返回毫秒，失败返回 nil
-    func delay(of proxy: String, testURL: String, timeoutMs: Int = 5000) async -> Int? {
-        let query = [URLQueryItem(name: "url", value: testURL), URLQueryItem(name: "timeout", value: String(timeoutMs))]
-        guard let data = try? await send("GET", "/proxies/\(Self.encode(proxy))/delay", query: query,
-                                         timeout: TimeInterval(timeoutMs) / 1000 + 3),
-              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let delay = object["delay"] as? Int, delay > 0 else { return nil }
-        return delay
-    }
-
-    /// 整组测速（Mihomo 的 /group/{name}/delay）；结果会写进内核的 history，刷新后即可看到
-    func groupDelay(of group: String, testURL: String, timeoutMs: Int = 5000) async throws -> [String: Int] {
-        let query = [URLQueryItem(name: "url", value: testURL), URLQueryItem(name: "timeout", value: String(timeoutMs))]
-        let data = try await send("GET", "/group/\(Self.encode(group))/delay", query: query,
-                                  timeout: TimeInterval(timeoutMs) / 1000 + 5)
-        return (try? JSONDecoder().decode([String: Int].self, from: data)) ?? [:]
-    }
 }
 
 /// 经 Unix 套接字发 HTTP/1.0 请求（Clash Verge 等默认用套接字暴露控制器）

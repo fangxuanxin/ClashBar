@@ -104,9 +104,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             menu.addItem(.separator())
             addGroups(snapshot)
             menu.addItem(.separator())
-            let testing = !model.testingGroups.isEmpty
-            menu.addItem(action(testing ? L10n.t("card.testing") : L10n.t("menu.test_latency"), "t", "speedometer",
-                                #selector(testLatency), enabled: !testing))
             menu.addItem(action(L10n.t("menu.refresh"), "r", "arrow.clockwise", #selector(refresh)))
             menu.addItem(action(L10n.t("menu.copy"), "c", "doc.on.doc", #selector(copyInfo)))
         } else {
@@ -210,8 +207,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let chain = Set(snapshot.exit.chain)
         for group in snapshot.groups {
             let item = NSMenuItem(title: group.name, action: nil, keyEquivalent: "")
-            let testing = model.testingGroups.contains(group.name)
-            item.attributedTitle = twoColumn(group.name, testing ? L10n.t("card.testing") : (group.now ?? ""), bold: chain.contains(group.name))
+            item.attributedTitle = twoColumn(group.name, group.now ?? "", bold: chain.contains(group.name))
             item.image = groupImage(group)
             item.submenu = memberMenu(group, snapshot)
             menu.addItem(item)
@@ -234,10 +230,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let submenu = NSMenu()
         submenu.autoenablesItems = false
 
-        let test = action(L10n.t("menu.test_group"), "", "speedometer", #selector(testGroup(_:)),
-                          enabled: !model.testingGroups.contains(group.name))
-        test.representedObject = group.name
-        submenu.addItem(test)
         if !group.isSelectable {
             let note = NSMenuItem(title: L10n.t("menu.auto_group", ["type": group.type]), action: nil, keyEquivalent: "")
             note.isEnabled = false
@@ -251,7 +243,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             var color = NSColor.secondaryLabelColor
             if let member, member.isGroup {
                 right = "→ " + (member.now ?? "")
-            } else if let delay = member?.lastDelay, !(member?.isBuiltin ?? true) {
+            } else if let member, !member.isBuiltin, let reading = PassiveLatency.read(node: member, group: group),
+                      reading.isRecent(at: Date()) {
+                let delay = reading.sample.delay
                 if delay > 0 {
                     right = "\(delay) ms"
                     color = delay < 300 ? .systemGreen : (delay < 800 ? .systemOrange : .systemRed)
@@ -299,7 +293,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     // MARK: - 动作
 
     @objc private func refresh() { model.refresh() }
-    @objc private func testLatency() { model.testLatency() }
     @objc private func copyInfo() { model.copyExitInfo() }
     @objc private func openGeneral() { openSettings(.general) }
     @objc private func openControllers() { openSettings(.controllers) }
@@ -315,11 +308,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func selectMember(_ sender: NSMenuItem) {
         guard let pair = sender.representedObject as? [String], pair.count == 2 else { return }
         model.select(group: pair[0], node: pair[1])
-    }
-
-    @objc private func testGroup(_ sender: NSMenuItem) {
-        guard let name = sender.representedObject as? String else { return }
-        model.testGroup(name)
     }
 
     @objc private func selectController(_ sender: NSMenuItem) {
