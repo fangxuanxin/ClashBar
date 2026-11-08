@@ -1,6 +1,10 @@
 ClashBar 隐私政策 / Privacy Policy
-更新日期 / Updated: 2026-11-07
+更新日期 / Updated: 2026-11-08
 适用范围：Mac App Store 版本 / Scope: Mac App Store version
+
+切换历史默认在本机记录控制器名称、模式、节点与分组名称、选择路径、观测时间和默认出口测速结果，保留最近 30 天。控制器历史身份由连接参数摘要生成，不在历史库保存明文口令或地址。最多保留 5 份每日恢复备份，备份可能包含更早的记录。可在「切换历史」暂停记录或清空所有记录和恢复备份。历史不包含访问域名或连接明细，不上传开发者服务器。删除控制器配置不会自动清除其历史，可另行清空。
+
+Switch history locally records controller names, modes, node and group names, selection paths, observation times and default-exit latency test results for 30 days. Controller history identities use a digest of connection parameters; the history database does not store plaintext secrets or addresses. Up to five daily recovery backups may contain older records. Recording can be paused and all observations and recovery backups cleared in Switch History. History contains no visited domains or connection details and is not uploaded to the developer. Removing a controller configuration does not automatically delete its history.
 
 ClashBar 是连接用户已有 Clash API 控制器的菜单栏工具，不提供代理服务、VPN 服务或订阅，不内置代理内核。
 

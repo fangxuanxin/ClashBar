@@ -47,6 +47,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var actionError: String?
 
     private let prefs: Preferences
+    let history: HistoryModel
+    private var refreshGeneration = 0
     private var timer: Timer?
     private var refreshTask: Task<Void, Never>?
     private var refreshAgain = false
@@ -59,15 +61,19 @@ final class AppModel: ObservableObject {
     private var startupRetries = 0
     private var cancellables = Set<AnyCancellable>()
 
-    init(prefs: Preferences) {
+    init(prefs: Preferences, history: HistoryModel? = nil) {
         self.prefs = prefs
+        self.history = history ?? HistoryModel()
     }
 
     func start() {
         scheduleTimer()
         refresh()
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refresh() }
+            MainActor.assumeIsolated { self?.history.interrupt(); self?.refresh() }
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.history.interrupt(); self?.refreshTask?.cancel() }
         }
         // 网络变化（换 Wi-Fi、插拔网线）后稍等再刷新，并重新检测控制器
         let monitor = NWPathMonitor()
@@ -99,6 +105,7 @@ final class AppModel: ObservableObject {
     }
 
     func stop() {
+        history.interrupt()
         timer?.invalidate()
         refreshTask?.cancel()
         pathMonitor?.cancel()
@@ -117,7 +124,11 @@ final class AppModel: ObservableObject {
 
     /// 控制器切换或编辑后：清空旧数据立即重读
     func controllerChanged() {
+        refreshGeneration += 1
+        history.interrupt()
         refreshTask?.cancel()
+        refreshTask = nil
+        refreshAgain = false
         autoController = nil
         rulesCache = nil
         snapshot = nil
@@ -134,9 +145,10 @@ final class AppModel: ObservableObject {
             return
         }
         isRefreshing = true
+        let generation = refreshGeneration
         refreshTask = Task { [weak self] in
             await self?.performRefresh()
-            guard let self else { return }
+            guard let self, self.refreshGeneration == generation else { return }
             self.refreshTask = nil
             self.isRefreshing = false
             if self.refreshAgain {
@@ -165,6 +177,7 @@ final class AppModel: ObservableObject {
     }
 
     private func performRefresh(retryAutomatic: Bool = true) async {
+        let historyToken = history.observationGeneration
         let wasLocked = prefs.activeControllerID == nil && autoController != nil
         do {
             let controller = try await resolveController()
@@ -194,9 +207,12 @@ final class AppModel: ObservableObject {
                                      groups: ExitResolver.orderedGroups(proxies, mode: configs.mode), exit: exit)
             phase = .ready
             startupRetries = 0
-            lastUpdated = Date()
+            let observedAt = Date()
+            lastUpdated = observedAt
+            if let snapshot { await history.observe(snapshot, interval: prefs.refreshInterval, at: observedAt, token: historyToken) }
+            if Task.isCancelled { return }
             if exit.node != previousNode, case .ok = health { health = .unknown }
-            await checkHealth(client: client, exit: exit, proxies: proxies)
+            await checkHealth(client: client, exit: exit, proxies: proxies, historyToken: historyToken, observedAt: observedAt)
         } catch is CancellationError {
             return
         } catch let error as ClashError {
@@ -219,6 +235,7 @@ final class AppModel: ObservableObject {
     }
 
     private func fail(_ error: ClashError) {
+        history.interrupt()
         // 自动模式下失败就丢弃缓存的控制器，下次重新检测
         autoController = nil
         health = .unknown
@@ -233,7 +250,7 @@ final class AppModel: ObservableObject {
     }
 
     /// 只测当前出口节点：一次请求，开销很小
-    private func checkHealth(client: ClashClient, exit: ExitInfo, proxies: [String: ProxyItem]) async {
+    private func checkHealth(client: ClashClient, exit: ExitInfo, proxies: [String: ProxyItem], historyToken: Int, observedAt: Date) async {
         guard let node = exit.node, let proxy = proxies[node], !proxy.isGroup, !proxy.isBuiltin,
               exit.family != .direct, exit.family != .reject else {
             health = .notApplicable
@@ -243,6 +260,7 @@ final class AppModel: ObservableObject {
         let delay = await client.delay(of: node, testURL: prefs.effectiveTestURL)
         guard !Task.isCancelled, snapshot?.exit.node == node else { return }
         health = delay.map { .ok($0) } ?? .failed
+        await history.sample(controller: client.config, node: node, delay: delay, at: observedAt, token: historyToken)
     }
 
     // MARK: - 操作
@@ -265,12 +283,18 @@ final class AppModel: ObservableObject {
     }
 
     func setMode(_ mode: OutboundMode) {
-        perform { try await $0.setMode(mode) }
+        perform { client in
+            try await client.setMode(mode)
+            self.history.requested(controller: client.config, group: nil, value: mode.rawValue)
+        }
     }
 
     func select(group: String, node: String) {
         health = .unknown
-        perform { try await $0.select(group: group, node: node) }
+        perform { client in
+            try await client.select(group: group, node: node)
+            self.history.requested(controller: client.config, group: group, value: node)
+        }
     }
 
     /// 测一个分组；内核会把结果写进 history，刷新后菜单即可显示新延迟

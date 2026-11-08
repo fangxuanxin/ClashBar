@@ -11,6 +11,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let menu = NSMenu()
     private var cancellables = Set<AnyCancellable>()
+    private lazy var historyWindow = HistoryWindowController(model: model, prefs: prefs)
 
     /// 菜单里右对齐列的位置
     private let columnStop: CGFloat = 300
@@ -117,6 +118,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
         if !prefs.controllers.isEmpty { menu.addItem(controllerItem()) }
+        menu.addItem(action(HistoryText.title + "…", "h", "clock.arrow.circlepath", #selector(openHistory)))
         menu.addItem(action(L10n.t("menu.settings"), ",", "gearshape", #selector(openGeneral)))
         menu.addItem(action(L10n.t("menu.about"), "", "info.circle", #selector(openAbout)))
         #if !APP_STORE
@@ -134,6 +136,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         if let symbol { item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil) }
         return item
     }
+
+    @objc private func openHistory() { historyWindow.show() }
 
     private func sectionHeader(_ title: String) -> NSMenuItem {
         if #available(macOS 14.0, *) { return NSMenuItem.sectionHeader(title: title) }

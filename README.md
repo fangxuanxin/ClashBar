@@ -1,5 +1,13 @@
 # ClashBar
 
+## Switch history
+
+Open **Switch History…** (⌘H) to inspect the last hour, 24 hours, 7 days or 30 days. Filter by controller or group, inspect full nested selection paths, and compare observed node selection durations, median test latency and failed tests. Path changes through different groups are retained even when the terminal node stays the same. Mode and group configuration changes are separate events.
+
+History starts when recording is enabled. Polling may miss transitions between refreshes; timestamps indicate detection time. Sleep, disconnection and paused recording leave gaps. Load balancing has no single terminal node. Tests cover only the default exit; failures do not prove outages and selection duration is not uptime or traffic usage.
+
+Records stay in the local application support directory at `History/history.sqlite`, readable only by the current user. The database contains no plaintext controller secrets or addresses, visited domains or connection details. It retains 30 days plus up to five daily recovery backups, which may contain older records. Pause recording or clear all controller history and backups from the history window. Removing a controller configuration does not automatically remove its history. History is not uploaded to the developer.
+
 English | [简体中文](README.zh-CN.md)
 
 A native macOS menu bar app for Clash-API cores (Clash, Mihomo, sing-box). At a glance it tells you which country or region your default exit is in, and lets you switch modes and nodes without opening a dashboard.

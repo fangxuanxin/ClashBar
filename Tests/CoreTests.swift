@@ -265,6 +265,7 @@ enum TestMain {
         await testSavedControllerSelection()
         testUpdatePolicy()
         testGroupRole()
+        testHistory()
         testResolveViaMatch()
         testResolveOtherBranch()
         testResolveDirectNodeSelected()
