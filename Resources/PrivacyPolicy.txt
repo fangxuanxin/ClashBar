@@ -1,0 +1,27 @@
+ClashBar 隐私政策 / Privacy Policy
+更新日期 / Updated: 2026-11-07
+适用范围：Mac App Store 版本 / Scope: Mac App Store version
+
+ClashBar 是连接用户已有 Clash API 控制器的菜单栏工具，不提供代理服务、VPN 服务或订阅，不内置代理内核。
+
+我们不运营收集应用数据的服务器，不在此版本中加入广告、分析或追踪 SDK，不向开发者上传控制器地址、口令、节点、网络活动或使用统计。
+
+控制器名称、地址、口令保存在 Mac 上的应用沙盒中；口令以仅当前用户可读的 JSON 文件保存，并非加密保险库。界面偏好保存在本机 UserDefaults。应用读取节点名称、分组、模式、延迟和内核版本以展示状态。删除控制器可移除该配置；卸载应用不保证系统自动删除其容器，可另行删除应用容器中的数据。复制出口信息只在用户操作后写入系统剪贴板。
+
+应用向用户配置的控制器发起 HTTP/HTTPS 请求，并携带对应口令。明文 HTTP 不加密地址与口令，请只在可信网络使用，远程连接优先使用 HTTPS。商店版可能探测本机 9090、9097 端口，不自动读取其他应用的配置或扫描网关。
+
+延迟测试由控制器访问用户设置的测试网址，默认 https://www.gstatic.com/generate_204。测试站点及网络服务提供方可能获知连接出口 IP 和请求信息，其处理方式由各自隐私政策约束。节点地区根据节点或分组名称识别，不访问设备定位。仅本地网络连接需要时，macOS 可能请求本地网络权限；拒绝权限可能导致局域网控制器不可用。
+
+应用更新由 Mac App Store 负责。用户主动打开项目支持页面后，由 GitHub 按其隐私政策处理网页访问。问题和隐私请求可通过 https://github.com/fangxuanxin/ClashBar/issues 联系，请勿在公开反馈中附带口令或私人配置。
+
+ClashBar is a menu bar companion for an existing controller that exposes the Clash API. It does not provide a proxy service, VPN service, subscriptions or an embedded proxy engine.
+
+We operate no server that collects app data. This version contains no advertising, analytics or tracking SDK. Controller addresses, secrets, nodes, network activity and usage statistics are not uploaded to the developer.
+
+Controller names, addresses and secrets are stored in the app sandbox on your Mac. Secrets are stored in a JSON file readable only by the current user, not in an encrypted vault. Preferences use local UserDefaults. The app reads node names, groups, mode, latency and engine version to display status. Removing a controller deletes that saved entry. Uninstalling may leave container data behind; you can remove it separately. Exit information is copied to the system clipboard only at your request.
+
+The app sends HTTP/HTTPS requests, including your configured secret, to your controller. HTTP does not encrypt the address or secret; use trusted networks and prefer HTTPS for remote access. The store version may probe local ports 9090 and 9097. It does not automatically read other apps’ configurations or scan the gateway.
+
+Latency tests instruct the controller to contact your test URL, defaulting to https://www.gstatic.com/generate_204. The destination and network providers may receive the exit IP and request details under their own privacy policies. Region labels come from node or group names, not device location. macOS may request local network permission; denying it may prevent access to LAN controllers.
+
+Updates are handled by the Mac App Store. Opening project support pages subjects web visits to GitHub’s privacy policy. Contact us at https://github.com/fangxuanxin/ClashBar/issues for support or privacy requests. Do not include secrets or private configurations in public issues.
