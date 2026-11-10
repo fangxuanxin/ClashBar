@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import Charts
+import UniformTypeIdentifiers
 
 enum HistoryText {
     static func text(_ english: String, _ chinese: String) -> String {
@@ -67,6 +68,7 @@ struct HistoryView: View {
     @State private var confirmingClear = false
     @State private var eventLimit = 100
     @State private var sampleOrigin = "core"
+    @State private var exporting = false
 
     init(history: HistoryModel, model: AppModel, prefs: Preferences, initialTab: Int = 0, initialGroup: String = "", initialHours: Int = 24) {
         self.history = history
@@ -139,10 +141,26 @@ struct HistoryView: View {
                 if tab == 0 { timelineAndEvents } else { nodeStatistics }
             }
             Divider()
-            Text(HistoryText.text(
-                "ClashBar reads existing core tests without initiating probes. Samples retain the core timestamp and are deduplicated. Gaps mean no data; a failed test does not prove an outage. Records stay locally for 30 days plus up to 5 recovery backups.",
-                "ClashBar 只读取内核已有测速，不主动探测；按内核时间记录并去重。空白表示无数据，检测失败不代表断网。本地保留 30 天，另有最多 5 份恢复备份。"))
-                .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            HStack {
+                Button {
+                    let panel = NSSavePanel()
+                    panel.allowedContentTypes = [.json]
+                    panel.nameFieldStringValue = "ClashBar-history-\(Int(Date().timeIntervalSince1970)).json"
+                    panel.canCreateDirectories = true
+                    panel.begin { response in
+                        guard response == .OK, let url = panel.url else { return }
+                        exporting = true
+                        Task {
+                            await history.export(to: url)
+                            exporting = false
+                        }
+                    }
+                } label: {
+                    Label(HistoryText.text("Export…", "导出…"), systemImage: "square.and.arrow.up")
+                }
+                .disabled(exporting)
+                Spacer()
+            }
         }
         .padding(22)
         .frame(minWidth: 760, minHeight: 560)
@@ -158,7 +176,7 @@ struct HistoryView: View {
                 Task { await history.clear(); model.refresh() }
             }
         } message: {
-            Text(HistoryText.text("This deletes observations, tests and recovery backups for every controller.", "将删除所有控制器的观测记录、测速样本和恢复备份。"))
+            Text(HistoryText.text("This deletes observations and test samples for every controller.", "将删除所有控制器的观测记录和测速样本。"))
         }
         .onChange(of: group) { _ in selectedInterval = nil; eventLimit = 100 }
         .onChange(of: hours) { _ in selectedInterval = nil; eventLimit = 100 }

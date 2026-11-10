@@ -58,11 +58,8 @@ func testPassiveHistoryMigration() {
         expectEqual(report.samples.count, 2, "多次刷新同一内核结果只保存一次")
         expectEqual(report.samples.filter { $0.origin == "clashbar" }.count, 1, "旧样本保留并标记原主动测速来源")
         expectEqual(report.samples.first(where: { $0.origin == "core" })?.testURL, "cf", "内核来源与网址单独存储")
-        let backups = try FileManager.default.contentsOfDirectory(at: root.appendingPathComponent("database_backup"), includingPropertiesForKeys: nil)
-        expectEqual(backups.count, 1, "升级旧库前自动备份")
-        let restored = root.appendingPathComponent("restored.sqlite")
-        try FileManager.default.copyItem(at: backups[0], to: restored)
-        let restoredStore = try HistoryStore(url: restored)
-        expectEqual(try restoredStore.report(controller: "router", from: now.addingTimeInterval(-1), to: now.addingTimeInterval(1)).samples.count, 1, "旧库备份可恢复，迁移可重复")
+        expect(!FileManager.default.fileExists(atPath: root.appendingPathComponent("database_backup").path), "升级旧库不创建备份")
+        let reopened = try HistoryStore(url: url)
+        expectEqual(try reopened.report(controller: "router", from: now.addingTimeInterval(-1), to: now.addingTimeInterval(1)).samples.count, 2, "迁移可重复且保留旧样本和内核样本")
     } catch { expect(false, "被动历史测试失败：\(error)") }
 }

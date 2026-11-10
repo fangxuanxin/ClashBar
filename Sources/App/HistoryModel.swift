@@ -22,9 +22,10 @@ final class HistoryModel: ObservableObject {
 
     init(url: URL? = nil, defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        let databaseURL = url ?? Preferences.supportDirectory.appendingPathComponent("History/history.sqlite")
         enabled = !defaults.bool(forKey: "historyPaused")
         do {
-            service = try HistoryService(url: url ?? Preferences.supportDirectory.appendingPathComponent("History/history.sqlite"))
+            service = try HistoryService(url: databaseURL)
         } catch { self.error = error.localizedDescription }
     }
 
@@ -82,6 +83,15 @@ final class HistoryModel: ObservableObject {
             try await service.clear()
             error = nil
             revision += 1
+        } catch { self.error = error.localizedDescription }
+    }
+
+    func export(to url: URL) async {
+        do {
+            guard let service else { throw HistoryStore.StoreError.database(error ?? "History unavailable") }
+            let data = try await service.exportJSON()
+            try data.write(to: url, options: .atomic)
+            error = nil
         } catch { self.error = error.localizedDescription }
     }
 }

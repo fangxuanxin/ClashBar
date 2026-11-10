@@ -73,25 +73,32 @@ func testHistory() {
         let malicious = "节点'); DROP TABLE samples; -- 🇯🇵"
         try store.sample(controller: "router", node: malicious, delay: 5, at: origin.addingTimeInterval(95))
         expectEqual(try report().samples.last?.node, malicious, "节点名称通过参数绑定安全保存")
-        try store.backup(at: origin.addingTimeInterval(1000))
+        let exported = try JSONSerialization.jsonObject(with: store.exportJSON()) as! [String: Any]
+        let exportedIntervals = exported["intervals"] as! [[String: Any]]
+        let exportedSamples = exported["samples"] as! [[String: Any]]
+        expectEqual(exported["schemaVersion"] as? Int, 2, "导出标明原始库版本")
+        expectEqual(exportedIntervals.count, try report().intervals.count + 1, "导出所有控制器的原始区间")
+        expect(exportedIntervals.last?["state"] is [String: Any], "状态导出为JSON对象")
+        expectEqual(exportedSamples.count, 3, "导出全部测速样本")
+        expect(exportedSamples[1]["delay"] is NSNull, "导出保留失败样本的null延迟")
+        expectEqual(exportedSamples.last?["node"] as? String, malicious, "导出保留特殊字符节点名")
+        expectEqual(exportedSamples.first?["time"] as? Double, origin.addingTimeInterval(60).timeIntervalSince1970, "导出保留原始时间戳")
         let backupDirectory = directory.appendingPathComponent("database_backup")
-        let backup = try FileManager.default.contentsOfDirectory(at: backupDirectory, includingPropertiesForKeys: nil)
-            .sorted { $0.lastPathComponent > $1.lastPathComponent }.first!
-        let restoredURL = directory.appendingPathComponent("Restore/history.sqlite")
-        try FileManager.default.createDirectory(at: restoredURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try FileManager.default.copyItem(at: backup, to: restoredURL)
-        let restored = try HistoryStore(url: restoredURL)
-        expectEqual(try restored.report(controller: "router", from: origin, to: origin.addingTimeInterval(1000)).samples.count, 3, "备份恢复演练保留全部测速样本")
-        expectEqual(try restored.report(controller: "router", from: origin, to: origin.addingTimeInterval(1000)).intervals.count, try report().intervals.count, "备份恢复演练保留全部路径区间")
-        for offset in 1...6 { try store.backup(at: origin.addingTimeInterval(1000 + Double(offset))) }
-        expectEqual(try FileManager.default.contentsOfDirectory(atPath: backupDirectory.path).count, 5, "备份轮转只保留5份")
+        expect(!FileManager.default.fileExists(atPath: backupDirectory.path), "记录和重开历史库不创建备份")
         try store.maintain(at: origin.addingTimeInterval(HistoryStore.retention + 200))
         result = try report(HistoryStore.retention + 200, start: 0)
         expect(result.samples.isEmpty, "30天过期样本删除")
         expect(result.intervals.allSatisfy { $0.start >= origin.addingTimeInterval(200) }, "跨保留边界的区间裁剪")
+        expect(!FileManager.default.fileExists(atPath: backupDirectory.path), "每日维护不创建备份")
         try store.clear()
+        expect(!FileManager.default.fileExists(atPath: backupDirectory.path), "清空历史不创建备份")
         expectEqual(try report().intervals.isEmpty, true, "清空全部路径记录")
         expectEqual(try report().samples.isEmpty, true, "清空全部测速样本")
+        let emptyExport = try JSONSerialization.jsonObject(with: store.exportJSON()) as! [String: Any]
+        expectEqual((emptyExport["intervals"] as? [Any])?.count, 0, "空库可以导出有效JSON")
+        try FileManager.default.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
+        try Data("legacy backup".utf8).write(to: backupDirectory.appendingPathComponent("history-old.sqlite"))
+        try store.clear()
         expect(!FileManager.default.fileExists(atPath: backupDirectory.path), "清空同时移除恢复备份")
     } catch { expect(false, "历史持久化测试失败：\(error)") }
 

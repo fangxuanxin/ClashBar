@@ -12,7 +12,7 @@ final class HistoryStore {
     static let retention: TimeInterval = 30 * 86400
     private var database: OpaquePointer?
     private let url: URL
-    private var backupDay: String?
+    private var maintenanceDay: String?
     private let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
 
     init(url: URL) throws {
@@ -41,7 +41,6 @@ final class HistoryStore {
                 }
             }
             if version < 2 {
-                if version == 1 { try backup(at: Date()) }
                 try transaction {
                     try execute("ALTER TABLE samples ADD COLUMN origin TEXT NOT NULL DEFAULT 'clashbar'")
                     try execute("ALTER TABLE samples ADD COLUMN test_url TEXT NOT NULL DEFAULT ''")
@@ -165,41 +164,35 @@ final class HistoryStore {
 
     func maintain(at time: Date) throws {
         let day = String(Int(time.timeIntervalSince1970 / 86400))
-        guard backupDay != day else { return }
+        guard maintenanceDay != day else { return }
         let cutoff = time.addingTimeInterval(-Self.retention).timeIntervalSince1970
-        try backup(at: time)
         try transaction {
             try execute("DELETE FROM intervals WHERE end < ?", [cutoff])
             try execute("UPDATE intervals SET start = ? WHERE start < ?", [cutoff, cutoff])
             try execute("DELETE FROM samples WHERE time < ?", [cutoff])
         }
-        backupDay = day
+        maintenanceDay = day
     }
 
-    func backup(at time: Date) throws {
-        let directory = url.deletingLastPathComponent().appendingPathComponent("database_backup", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        let destination = directory.appendingPathComponent("history-\(Int(time.timeIntervalSince1970))-\(UUID().uuidString).sqlite")
-        var target: OpaquePointer?
-        guard sqlite3_open(destination.path, &target) == SQLITE_OK else {
-            sqlite3_close(target)
-            throw StoreError.database("Cannot open history backup")
+    func exportJSON() throws -> Data {
+        let intervals = try query("SELECT id,controller,label,start,end,session,state,kind,source FROM intervals ORDER BY start,rowid") { prepared -> [String: Any] in
+            ["id": self.string(prepared, 0), "controller": self.string(prepared, 1), "label": self.string(prepared, 2),
+             "start": sqlite3_column_double(prepared, 3), "end": sqlite3_column_double(prepared, 4),
+             "session": self.string(prepared, 5),
+             "state": try JSONSerialization.jsonObject(with: Data(self.string(prepared, 6).utf8)),
+             "kind": self.string(prepared, 7), "source": self.string(prepared, 8)]
         }
-        defer { sqlite3_close(target) }
-        guard let copy = sqlite3_backup_init(target, "main", database, "main") else {
-            throw StoreError.database("Cannot create history backup")
+        let samples = try query("SELECT controller,time,node,delay,origin,test_url FROM samples ORDER BY time,rowid") { prepared -> [String: Any] in
+            let delay: Any = sqlite3_column_type(prepared, 3) == SQLITE_NULL ? NSNull() : NSNumber(value: sqlite3_column_int64(prepared, 3))
+            return ["controller": self.string(prepared, 0), "time": sqlite3_column_double(prepared, 1),
+                    "node": self.string(prepared, 2), "delay": delay,
+                    "origin": self.string(prepared, 4), "test_url": self.string(prepared, 5)]
         }
-        let result = sqlite3_backup_step(copy, -1)
-        let finished = sqlite3_backup_finish(copy)
-        guard result == SQLITE_DONE, finished == SQLITE_OK else { throw StoreError.database("Cannot finish history backup") }
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: destination.path)
-        let backups = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.creationDateKey])
-            .filter { $0.pathExtension == "sqlite" }.sorted { $0.lastPathComponent > $1.lastPathComponent }
-        for old in backups.dropFirst(5) { try FileManager.default.removeItem(at: old) }
+        return try JSONSerialization.data(withJSONObject: ["schemaVersion": 2, "intervals": intervals, "samples": samples],
+                                          options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
     }
 
     func clear() throws {
-        try backup(at: Date())
         try transaction {
             try execute("DELETE FROM intervals")
             try execute("DELETE FROM samples")
@@ -207,7 +200,7 @@ final class HistoryStore {
         try execute("PRAGMA wal_checkpoint(TRUNCATE)")
         let directory = url.deletingLastPathComponent().appendingPathComponent("database_backup", isDirectory: true)
         if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
-        backupDay = nil
+        maintenanceDay = nil
     }
 }
 
@@ -234,4 +227,5 @@ actor HistoryService {
     }
 
     func clear() throws { try store.clear() }
+    func exportJSON() throws -> Data { try store.exportJSON() }
 }

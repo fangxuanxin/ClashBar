@@ -72,6 +72,12 @@ enum HistoryAppTests {
         await history.observe(otherSnapshot, interval: 30, at: origin.addingTimeInterval(95), token: history.observationGeneration)
         await record(100)
         verify(try await report().intervals.last?.kind == "baseline", "自动切换控制器后返回也不跨控制器填充区间")
+        let exportURL = root.appendingPathComponent("history-export.json")
+        await history.export(to: exportURL)
+        verify(history.error == nil, "导出成功不显示错误")
+        let exported = try JSONSerialization.jsonObject(with: Data(contentsOf: exportURL)) as! [String: Any]
+        let exportedIntervals = exported["intervals"] as! [[String: Any]]
+        verify(Set(exportedIntervals.compactMap { $0["controller"] as? String }).count == 2, "导出包含全部控制器")
         await history.clear()
         verify(try await report().intervals.isEmpty, "清空记录")
         await history.sample(controller: controller, node: "stale", delay: 1, at: origin, token: oldToken)
